@@ -1,0 +1,14 @@
+# Build output and dependencies (scripts/build.sh fetches JUCE and NeuralAmpModelerCore)
+build/
+third_party/
+
+# Tone3000 captures and IRs are T3K-licensed: free to use, not to redistribute.
+# Download them yourself (see README) and drop them in tones/.
+tones/**/*.nam
+tones/**/*.wav
+tones/**/*.zip
+
+.DS_Store
+
+# Local saved states
+tones/Default
