@@ -2,15 +2,38 @@
 
 #include "PluginProcessor.h"
 #include "Tuner.h"
+#include "Sketch.h"
 
 namespace sa_ui
 {
 using APVTS = juce::AudioProcessorValueTreeState;
 
 // Look and feel whose rotary knobs use their space well even when small (pedal knobs).
+// Follows the current theme (dark or sketch): call applyTheme() after switching.
 struct Lnf : juce::LookAndFeel_V4
 {
+    Lnf() { applyTheme(); }
+    void applyTheme();
+
     void drawRotarySlider (juce::Graphics&, int x, int y, int w, int h, float pos, float start, float end, juce::Slider&) override;
+    void drawLinearSlider (juce::Graphics&, int x, int y, int w, int h, float pos, float minPos, float maxPos,
+                           juce::Slider::SliderStyle, juce::Slider&) override;
+    void drawButtonBackground (juce::Graphics&, juce::Button&, const juce::Colour&, bool over, bool down) override;
+    void drawComboBox (juce::Graphics&, int w, int h, bool down, int bx, int by, int bw, int bh, juce::ComboBox&) override;
+    void drawToggleButton (juce::Graphics&, juce::ToggleButton&, bool over, bool down) override;
+    void drawPopupMenuBackground (juce::Graphics&, int w, int h) override;
+    void drawTooltip (juce::Graphics&, const juce::String&, int w, int h) override;
+
+    juce::Font getLabelFont (juce::Label& l) override { return themed (l.getFont()); }
+    juce::Font getComboBoxFont (juce::ComboBox& b) override { return themed (LookAndFeel_V4::getComboBoxFont (b)); }
+    juce::Font getTextButtonFont (juce::TextButton& b, int h) override { return themed (LookAndFeel_V4::getTextButtonFont (b, h)); }
+    juce::Font getPopupMenuFont() override { return themed (LookAndFeel_V4::getPopupMenuFont()); }
+    juce::Font getSliderPopupFont (juce::Slider& s) override { return themed (LookAndFeel_V4::getSliderPopupFont (s)); }
+    juce::Font getAlertWindowMessageFont() override { return themed (LookAndFeel_V4::getAlertWindowMessageFont()); }
+    juce::Font getAlertWindowTitleFont() override { return themed (LookAndFeel_V4::getAlertWindowTitleFont()); }
+
+private:
+    juce::SharedResourcePointer<sketch::Textures> textures; // keeps the paper texture alive while a UI is open
 };
 
 // Round LED footswitch.
@@ -103,6 +126,7 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
     void toggleTuner();
+    void applyTheme(); // after the look was switched (here or in another window)
 
 private:
     void timerCallback() override;
@@ -121,6 +145,8 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> cabAtt, ecoAtt;
     juce::ComboBox presetBox, inputChBox;
     juce::TextButton tunerButton { "TUNER" }, saveButton { "Save" }, deleteButton { "Delete" };
+    juce::TextButton darkButton { "DARK" }, sketchButton { "SKETCH" };
+    int themeSeen = -1;
     juce::Array<juce::File> userPresets;
     std::unique_ptr<juce::AlertWindow> saveDialog;
     std::unique_ptr<sa_ui::TunerPanel> tuner;

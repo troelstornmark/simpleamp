@@ -69,14 +69,22 @@ struct Meter : juce::Component
     void paint (juce::Graphics& g) override
     {
         auto r = getLocalBounds().toFloat();
-        g.setColour (kDim);
-        g.setFont (juce::FontOptions (11.0f));
+        g.setColour (sa_ui::pal().dim);
+        g.setFont (sa_ui::font (11.0f));
         g.drawText (label, r.removeFromLeft (26), juce::Justification::centredLeft);
-        g.setColour (juce::Colour (0xff2a2a2e));
-        g.fillRoundedRectangle (r, 3.0f);
         const float db = juce::Decibels::gainToDecibels (level, -60.0f);
         const float frac = juce::jlimit (0.0f, 1.0f, (db + 60.0f) / 60.0f);
-        g.setColour (db > -1.0f ? juce::Colours::red : db > -12.0f ? juce::Colour (0xffe0b12a) : juce::Colour (0xff4caf50));
+        const auto colour = db > -1.0f ? juce::Colours::red : db > -12.0f ? juce::Colour (0xffe0b12a) : juce::Colour (0xff4caf50);
+        if (sa_ui::isSketch())
+        {
+            const auto seed = (juce::uint32) label.hashCode();
+            if (frac > 0.0f) sa_ui::sketch::hatchBox (g, r.reduced (1.5f).withWidth ((r.getWidth() - 3.0f) * frac), 3.0f, colour, seed, 2.0f, true);
+            sa_ui::sketch::box (g, r.reduced (1.5f), 3.0f, seed, 1.1f);
+            return;
+        }
+        g.setColour (juce::Colour (0xff2a2a2e));
+        g.fillRoundedRectangle (r, 3.0f);
+        g.setColour (colour);
         g.fillRoundedRectangle (r.withWidth (r.getWidth() * frac), 3.0f);
     }
 };
@@ -89,6 +97,7 @@ public:
     LiveComponent (juce::AudioDeviceManager& dm, SimpleAmpProcessor& p, juce::PropertiesFile& props)
         : deviceManager (dm), proc (p), settings (props), editor (p)
     {
+        setLookAndFeel (&lnf); // the top bar follows the dark / sketch look too (the editor has its own)
         addAndMakeVisible (editor);
 
         audioButton.onClick = [this] { showAudioSettings(); };
@@ -128,7 +137,6 @@ public:
         for (auto* l : { &gainLabel, &volLabel })
         {
             l->setFont (juce::FontOptions (11.0f));
-            l->setColour (juce::Label::textColourId, kDim);
             l->setJustificationType (juce::Justification::centredRight);
             addAndMakeVisible (*l);
         }
@@ -154,6 +162,7 @@ public:
     {
         deviceManager.removeChangeListener (this);
         restoreDefaultOutput();
+        setLookAndFeel (nullptr);
     }
 
     // Rebuilds the menu when files were added or removed. On first call, selects the last-used tone.
@@ -197,10 +206,23 @@ public:
 
     void paint (juce::Graphics& g) override
     {
-        g.fillAll (kBar);
+        const auto bar = getLocalBounds().removeFromTop (kBarHeight).toFloat();
+        if (sa_ui::isSketch())
+        {
+            sa_ui::sketch::paper (g, bar);
+            juce::Path rule;
+            rule.startNewSubPath (8.0f, bar.getBottom() - 2.0f);
+            rule.lineTo (bar.getRight() - 8.0f, bar.getBottom() - 2.0f);
+            sa_ui::sketch::outline (g, rule, 52u, 1.2f);
+        }
+        else
+        {
+            g.fillAll (kBar);
+        }
         if (tones.isEmpty())
         {
             g.setColour (kAccent);
+            g.setFont (sa_ui::font (15.0f));
             g.drawText ("No tones found: click Open tones folder and put .nam files in amps/", getLocalBounds().removeFromTop (kBarHeight),
                         juce::Justification::centred);
         }
@@ -372,6 +394,13 @@ private:
 
     void timerCallback() override
     {
+        if (themeSeen != sa_ui::themeVersion()) // the look was switched in the editor
+        {
+            themeSeen = sa_ui::themeVersion();
+            lnf.applyTheme();
+            sendLookAndFeelChange();
+            repaint();
+        }
         if (++ticks % 90 == 0) rebuildToneList (false); // every 3 s: pick up new files
         if (ticks % 10 == 0) { syncToneBox(); updateDeviceVolumes(); } // follows Audio MIDI Setup and volume keys
         const float decay = 0.85f;
@@ -380,7 +409,8 @@ private:
         inMeter.repaint(); outMeter.repaint();
     }
 
-    int ticks = 0;
+    int ticks = 0, themeSeen = sa_ui::themeVersion();
+    sa_ui::Lnf lnf;
     juce::AudioDeviceManager& deviceManager;
     SimpleAmpProcessor& proc;
     juce::PropertiesFile& settings;
@@ -427,6 +457,8 @@ public:
         deviceManager.initialise (2, 2, savedDevice.get(), true, {}, savedDevice == nullptr ? &preferred : nullptr);
         useInterfaceIfPresent (deviceManager, savedDevice == nullptr);
 
+        if (getCommandLineParameters().contains ("--sketch")) sa_ui::setSketch (true);  // self-test / screenshots
+        if (getCommandLineParameters().contains ("--dark")) sa_ui::setSketch (false);
         player.setProcessor (processor.get());
         deviceManager.addAudioCallback (&player);
 

@@ -95,6 +95,12 @@ Close it with **Done** or **T**. It uses no CPU while closed.
   Copy them to back them up or move them to another Mac.
 - The selected preset is remembered with the app, or with your LUNA session.
 
+## Look: Dark or Sketch
+
+**DARK | SKETCH** in the header switches the whole window between the dark stage look and a pencil sketch:
+graphite outlines and coloured-pencil shading on grained off-white paper, with the same layout and pedal colours.
+The choice is shared by SimpleAmp Live and the plugin, and remembered (`~/Library/Application Support/SimpleAmp/look.txt`).
+
 ## Adding tones, pedals, cabs and reverbs
 
 Click **Open tones folder** in SimpleAmp Live (or open `~/Music/SimpleAmp` in Finder). Drop files into the

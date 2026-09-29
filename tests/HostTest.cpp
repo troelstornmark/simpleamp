@@ -242,6 +242,8 @@ static void testBoard (const juce::File& ampModel)
         p.setPlayConfigDetails (2, 2, 48000.0, 64);
         p.prepareToPlay (48000.0, 64);
         const char* name = mode == 0 ? "dry" : mode == 1 ? "delay" : "reverb";
+        p.loadImpulseResponse ({}); // built-in cab, so levels don't depend on the IRs in the library
+        pump (100);
         if (mode == 1) setParam (p, "delay_on", 1.0f);
         if (mode == 2) setParam (p, "rev_on", 1.0f);
         const auto r = run (p, 48000.0, 64, 4.0);
@@ -475,7 +477,11 @@ int main()
     {
         auto packs = juce::File (SIMPLEAMP_TONES_DIR).findChildFiles (juce::File::findFiles, true, "*.nam");
         packs.sort();
-        testBoard (packs.isEmpty() ? juce::File (SIMPLEAMP_TEST_MODELS).getChildFile ("A2.nam") : packs[0]);
+        juce::File amp (SIMPLEAMP_TEST_MODELS "/A2.nam");
+        if (! packs.isEmpty()) amp = packs[0];
+        for (auto& f : SimpleAmpProcessor::findAmpFiles()) // the board test expects a high-gain amp: prefer a 6505
+            if (f.getFileName().contains ("6505")) { amp = f; break; }
+        testBoard (amp);
     }
 
     testTuner();
